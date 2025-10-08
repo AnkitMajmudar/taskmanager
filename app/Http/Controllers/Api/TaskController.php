@@ -50,7 +50,7 @@ class TaskController extends Controller
     {
         $data = $request->validate([
             'task_name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'required|string|max:500',
             'due_date' => 'nullable|date',
             'priority' => ['nullable', Rule::in(['low','medium','high'])],
             'is_completed' => 'sometimes|boolean',
