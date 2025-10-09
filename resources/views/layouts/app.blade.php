@@ -11,22 +11,28 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <style>
-  /* Task card base styles */
-  .task-card {
-    position: relative; /* needed for badge positioning */
+ .task-card {
+    position: relative;
     transition: transform 0.2s, box-shadow 0.2s;
-  }
+    border-radius: 0.5rem;
+    background-color: #fff;
+    padding: 0;
+}
 
-  /* Highlight tasks due within 24h */
-  .task-card.due-soon {
-    border-left: 8px solid #dc3545; /* thicker red border */
-    background-color: #fff0f0;      /* light red background */
-    box-shadow: 0 4px 12px rgba(220,53,69,0.2); /* stronger shadow */
-    transform: scale(1.02); /* subtle pop-out effect */
-  }
+.task-card .card-body {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
 
-  /* Optional “Due Soon!” badge */
-  .due-soon-badge {
+.task-card.due-soon {
+    border-left: 6px solid #dc3545;
+    background-color: #fff4f4;
+    box-shadow: 0 2px 6px rgba(220,53,69,0.15);
+}
+
+.due-soon-badge {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
@@ -36,21 +42,71 @@
     background-color: #dc3545;
     color: #fff;
     border-radius: 0.25rem;
-    text-transform: uppercase;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  }
+}
 
-  /* Completed tasks */
-  .task-card.completed {
-    opacity: .6;
+.task-card.completed {
+    opacity: 0.65;
     text-decoration: line-through;
     background-color: #f8f9fa;
-  }
+}
 
-  /* Priority borders */
-  .priority-high { border-left: 6px solid #ff6b6b; }
-  .priority-medium { border-left: 6px solid #ffc107; }
-  .priority-low { border-left: 6px solid #198754; }
+.card-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 65%;
+    margin-bottom: 0;
+}
+
+.card-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.5rem;
+}
+
+.task-card .btn {
+    margin-right: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.priority-high { border-left: 4px solid #ff6b6b; }
+.priority-medium { border-left: 4px solid #ffc107; }
+.priority-low { border-left: 4px solid #198754; }
+
+.task-detail-box {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.95);
+    padding: 1rem;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.task-detail-box h5 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.task-detail-box p {
+    margin-bottom: 0.25rem;
+}
+
+.task-detail-box button.close-box {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+
 </style>
 
 

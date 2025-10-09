@@ -10,25 +10,41 @@ use Carbon\Carbon;
 class TaskController extends Controller
 {
     
-    public function index(Request $request)
+        public function index(Request $request)
     {
         $filter = $request->query('filter');
+        $perPage = $request->query('per_page', 6); // default 10 items per page
 
-        $query = Task::query()->orderByRaw("FIELD(priority,'high','medium','low') ASC")->orderBy('due_date','asc');
+        $query = Task::query()
+    ->orderByRaw("is_completed ASC") // incomplete (0) first, completed (1) last
+    ->orderByRaw("FIELD(priority,'high','medium','low') ASC")
+    ->orderBy('due_date','asc');
+
 
         if ($filter === 'completed') $query->where('is_completed', true);
         if ($filter === 'pending') $query->where('is_completed', false);
 
-        $tasks = $query->get();
+        // Use paginate instead of get
+        $tasks = $query->paginate($perPage);
 
-        
-        $tasks->map(function($t){
+        // Add due_soon attribute
+        $tasks->getCollection()->transform(function($t){
             $t->due_soon = $t->isDueSoon();
             return $t;
         });
 
-        return response()->json(['success'=>true,'data'=>$tasks]);
+        return response()->json([
+            'success' => true,
+            'data' => $tasks->items(),
+            'pagination' => [
+                'current_page' => $tasks->currentPage(),
+                'last_page' => $tasks->lastPage(),
+                'per_page' => $tasks->perPage(),
+                'total' => $tasks->total(),
+            ]
+        ]);
     }
+
 
 
     public function store(Request $request)

@@ -14,6 +14,7 @@
 </div>
 
 <div id="tasksContainer" class="row g-3"></div>
+<div id="paginationContainer" class="d-flex justify-content-center mt-3"></div>
 
 <!-- Task Modal -->
 <div class="modal fade" id="taskModal" tabindex="-1" aria-hidden="true">
@@ -119,74 +120,140 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 
   // Fetch tasks from API
-  async function fetchTasks(){
+  let currentPage = 1;
+const perPage = 6; // matches API per_page
+
+async function fetchTasks(page = 1){
     const filter = filterSelect.value;
+    currentPage = page;
     try {
-      const res = await axios.get('/api/tasks', { params: { filter }});
-      renderTasks(res.data.data || []);
+        const res = await axios.get('/api/tasks', { params: { filter, page, per_page: perPage } });
+        renderTasks(res.data.data || []);
+        renderPagination(res.data.pagination); // <-- use pagination object
     } catch (err) {
-      console.error(err);
-      alert('Failed to fetch tasks');
+        console.error(err);
+        alert('Failed to fetch tasks');
     }
-  }
+}
+
+function renderPagination(meta){
+    const container = document.getElementById('paginationContainer');
+    container.innerHTML = '';
+
+    if (!meta || meta.last_page <= 1) return;
+
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = 'Prev';
+    prevBtn.className = 'btn btn-sm btn-outline-primary me-2';
+    prevBtn.disabled = meta.current_page === 1;
+    prevBtn.addEventListener('click', ()=>fetchTasks(meta.current_page - 1));
+    container.appendChild(prevBtn);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Next';
+    nextBtn.className = 'btn btn-sm btn-outline-primary';
+    nextBtn.disabled = meta.current_page === meta.last_page;
+    nextBtn.addEventListener('click', ()=>fetchTasks(meta.current_page + 1));
+    container.appendChild(nextBtn);
+}
+
+
 
   // Render tasks with live sorting
   function renderTasks(tasks){
-    tasksContainer.innerHTML = '';
+  tasksContainer.innerHTML = '';
 
-    if (!tasks.length) {
-      tasksContainer.innerHTML = `<div class="col-12"><div class="card p-4 text-center text-muted">No tasks yet</div></div>`;
-      return;
+  if (!tasks.length) {
+    tasksContainer.innerHTML = `<div class="col-12"><div class="card p-4 text-center text-muted">No tasks yet</div></div>`;
+    return;
+  }
+
+  tasks.sort((a, b) => {
+    // 1. Incomplete tasks first
+    if (a.is_completed && !b.is_completed) return 1;
+    if (!a.is_completed && b.is_completed) return -1;
+
+    // 2. Due soon tasks first (only for incomplete tasks)
+    if (!a.is_completed && !b.is_completed) {
+        if (a.due_soon && !b.due_soon) return -1;
+        if (!a.due_soon && b.due_soon) return 1;
     }
 
-    // Sort: due soon first, then pending by due date, completed last
-    tasks.sort((a, b) => {
-      if (a.due_soon && !b.due_soon) return -1;
-      if (!a.due_soon && b.due_soon) return 1;
+    // 3. Priority: high -> medium -> low
+    const priorityOrder = { high: 1, medium: 2, low: 3 };
+    const aPriority = a.priority ? priorityOrder[a.priority] : 4;
+    const bPriority = b.priority ? priorityOrder[b.priority] : 4;
+    if (aPriority !== bPriority) return aPriority - bPriority;
 
-      if (a.is_completed && !b.is_completed) return 1;
-      if (!a.is_completed && b.is_completed) return -1;
+    // 4. Due date ascending
+    const aDate = a.due_date ? new Date(a.due_date) : new Date(8640000000000000);
+    const bDate = b.due_date ? new Date(b.due_date) : new Date(8640000000000000);
+    return aDate - bDate;
+});
 
-      const aDate = a.due_date ? new Date(a.due_date) : new Date(8640000000000000);
-      const bDate = b.due_date ? new Date(b.due_date) : new Date(8640000000000000);
-      return aDate - bDate;
-    });
 
-    tasks.forEach(task => {
-      const col = document.createElement('div');
-      col.className = 'col-md-6 col-lg-4';
-      const isCompleted = task.is_completed ? 'completed' : '';
-      const dueSoon = task.due_soon ? 'due-soon' : '';
-      const priorityClass = task.priority ? 'priority-'+task.priority : '';
-      const dueText = task.due_date ? new Date(task.due_date).toLocaleString() : 'No due date';
-      const dueBadge = task.due_soon ? `<span class="due-soon-badge">Due Soon!</span>` : '';
-      col.innerHTML = `
+  tasks.forEach(task=>{
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4 position-relative';
+
+    const isCompleted = task.is_completed ? 'completed' : '';
+    const dueSoon = task.due_soon ? 'due-soon' : '';
+    const priorityClass = task.priority ? 'priority-'+task.priority : '';
+    const dueText = task.due_date ? new Date(task.due_date).toLocaleString() : 'No due date';
+    const dueBadge = task.due_soon ? `<span class="due-soon-badge">Due Soon!</span>` : '';
+
+    col.innerHTML = `
       <div class="card task-card ${isCompleted} ${dueSoon} ${priorityClass} h-100 position-relative">
         ${dueBadge}
-        <div class="card-body d-flex flex-column">
-          <div class="d-flex justify-content-between align-items-start">
-            <h5 class="card-title mb-1">${escapeHtml(task.task_name)}</h5>
-            <small class="text-muted">${escapeHtml(task.priority || '')}</small>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <h5 class="card-title">${escapeHtml(task.task_name)}</h5>
+            <small class="text-muted ms-2">${escapeHtml(task.priority || '')}</small>
           </div>
-          <p class="card-text mb-2">${escapeHtml(task.description || '')}</p>
-          <div class="mt-auto">
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted">Due: ${escapeHtml(dueText)}</small>
-              <div>
-                <button class="btn btn-sm btn-outline-primary me-1 btn-edit" data-id="${task.id}">Edit</button>
-                <button class="btn btn-sm btn-outline-danger me-1 btn-delete" data-id="${task.id}">Delete</button>
-                <button class="btn btn-sm ${task.is_completed ? 'btn-warning' : 'btn-success'} btn-toggle" data-id="${task.id}" data-completed="${task.is_completed}">${task.is_completed ? 'Mark Incomplete' : 'Mark Done'}</button>
-              </div>
-            </div>
+          <p class="card-text">${escapeHtml(task.description || '')}</p>
+          <button class="btn btn-sm btn-info mb-2 btn-show-detail">Show</button>
+
+          <div class="d-flex gap-1 flex-wrap mt-auto">
+            <button class="btn btn-sm btn-outline-primary btn-edit" data-id="${task.id}">Edit</button>
+            <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${task.id}">Delete</button>
+            <button class="btn btn-sm ${task.is_completed ? 'btn-warning' : 'btn-success'} btn-toggle" data-id="${task.id}" data-completed="${task.is_completed}">${task.is_completed ? 'Mark Incomplete' : 'Mark Done'}</button>
+          </div>
+
+          <div class="task-detail-box">
+            <button class="btn-close close-box"></button>
+            <h5>${escapeHtml(task.task_name)}</h5>
+            <p><strong>Description:</strong> ${escapeHtml(task.description || '')}</p>
+            <p><strong>Due Date:</strong> ${escapeHtml(dueText)}</p>
+            <p><strong>Priority:</strong> ${escapeHtml(task.priority || '')}</p>
+            <p><strong>Status:</strong> ${task.is_completed ? 'Completed' : 'Pending'}</p>
           </div>
         </div>
-      </div>`;
-      tasksContainer.appendChild(col);
-    });
+      </div>
+    `;
+    tasksContainer.appendChild(col);
+  });
 
-    // Attach event listeners
-    attachTaskListeners();
-  }
+  attachTaskListeners();
+
+  // Show/Hide detail box
+  document.querySelectorAll('.btn-show-detail').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const card = e.currentTarget.closest('.task-card');
+      const box = card.querySelector('.task-detail-box');
+      box.style.display = 'block';
+    });
+  });
+
+  document.querySelectorAll('.task-detail-box .close-box').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const box = e.currentTarget.closest('.task-detail-box');
+      box.style.display = 'none';
+    });
+  });
+}
+
+
+
 
   // Escape HTML
   function escapeHtml(unsafe){
@@ -224,53 +291,69 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   // Form submission
-  taskForm.addEventListener('submit', async (e)=>{
+  // Form submission
+taskForm.addEventListener('submit', async (e)=>{
     e.preventDefault();
     clearErrors();
+
     const taskName = document.getElementById('task_name').value.trim();
     const description = document.getElementById('description').value.trim();
     const dueDateValue = dueDateInput.value;
     const priority = document.getElementById('priority').value;
     let hasError = false;
 
-    if (!taskName) { showError('task_name','Task Name cannot be empty'); hasError=true; }
+    // Task Name validation
+    if (!taskName) { showError('task_name','Task Name cannot be empty. Please enter a task name'); hasError=true; }
     else if (/^\s/.test(taskName)) { showError('task_name','Task Name cannot begin with a space. Please enter a valid name'); hasError=true; }
     else if (/\d/.test(taskName)) { showError('task_name','Task Name cannot contain numbers. Please use letters only.'); hasError=true; }
     else if (taskName.length > 50) { showError('task_name','Task Name cannot exceed 50 characters'); hasError=true; }
 
+    // Description validation
     if (!description) { showError('description','Description cannot be empty. Please enter a description'); hasError=true; }
     else if (/^\s/.test(description)) { showError('description','Description cannot start with a space. Please enter a valid description'); hasError=true; }
     else if (description.length > 500) { showError('description','Description cannot exceed 500 characters'); hasError=true; }
 
-    if (dueDateValue) {
-      const dueDate = new Date(dueDateValue);
-      const now = new Date();
-      if (dueDate < now) { 
-        showError('due_date', `Value must be ${formatDateTimeForMsg(now)} or later`);
-        hasError=true; 
-      }
+    // Due Date validation (now required)
+    if (!dueDateValue) {
+        showError('due_date','Due Date is required. Please select a valid date and time.');
+        hasError = true;
+    } else {
+        const dueDate = new Date(dueDateValue);
+        const now = new Date();
+        if (dueDate < now) { 
+            showError('due_date', `Value must be ${formatDateTimeForMsg(now)} or later`);
+            hasError=true; 
+        }
+    }
+
+    // Priority validation (now required)
+    if (!priority) {
+        showError('priority','Priority is required. Please select a priority level.');
+        hasError = true;
     }
 
     if (hasError) return;
 
     const payload = { 
-      task_name: taskName, 
-      description, 
-      due_date: dueDateValue ? new Date(dueDateValue).toISOString() : null, 
-      priority 
+        task_name: taskName, 
+        description, 
+        due_date: dueDateValue ? new Date(dueDateValue).toISOString() : null, 
+        priority 
     };
 
     try {
-      if (editingId) { await axios.put(`/api/tasks/${editingId}`, payload); editingId=null; }
-      else { await axios.post('/api/tasks', payload); }
-      taskModal.hide();
-      taskForm.reset();
-      await fetchTasks();
+        if (editingId) { await axios.put(`/api/tasks/${editingId}`, payload); editingId=null; }
+        else { await axios.post('/api/tasks', payload); }
+
+        taskModal.hide();
+        taskForm.reset();
+        await fetchTasks();
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.errors) showErrors(err.response.data.errors);
-      else { console.error(err); alert('Save failed'); }
+        if (err.response && err.response.data && err.response.data.errors) showErrors(err.response.data.errors);
+        else { console.error(err); alert('Save failed'); }
     }
-  });
+});
+
 
   addTaskBtn.addEventListener('click', ()=>{
     editingId=null;
