@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function(){
   let editingId = null;
   let datetimeInterval;
 
-  // Utility: format date for error message
+  
   function formatDateTimeForMsg(dt){
     const day = String(dt.getDate()).padStart(2,'0');
     const month = String(dt.getMonth()+1).padStart(2,'0');
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function(){
     return `${day}-${month}-${year} ${hours}:${minutes}`;
   }
 
-  // Prevent first space in task name and description
+  
   ['task_name', 'description'].forEach(id => {
     const input = document.getElementById(id);
     input.addEventListener('input', () => {
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   });
 
-  // Set minimum datetime
+
   function setMinDateTime() {
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
-  // Live validation for datetime
+  
   dueDateInput.addEventListener('input', () => {
     const selected = new Date(dueDateInput.value);
     const now = new Date();
@@ -119,9 +119,9 @@ document.addEventListener('DOMContentLoaded', function(){
     dueDateInput.reportValidity();
   });
 
-  // Fetch tasks from API
+  
   let currentPage = 1;
-const perPage = 6; // matches API per_page
+const perPage = 6; 
 
 async function fetchTasks(page = 1){
     const filter = filterSelect.value;
@@ -129,7 +129,7 @@ async function fetchTasks(page = 1){
     try {
         const res = await axios.get('/api/tasks', { params: { filter, page, per_page: perPage } });
         renderTasks(res.data.data || []);
-        renderPagination(res.data.pagination); // <-- use pagination object
+        renderPagination(res.data.pagination); 
     } catch (err) {
         console.error(err);
         alert('Failed to fetch tasks');
@@ -169,24 +169,23 @@ function renderPagination(meta){
   }
 
   tasks.sort((a, b) => {
-    // 1. Incomplete tasks first
+    
     if (a.is_completed && !b.is_completed) return 1;
     if (!a.is_completed && b.is_completed) return -1;
 
-    // 2. Due soon tasks first (only for incomplete tasks)
+    
     if (!a.is_completed && !b.is_completed) {
         if (a.due_soon && !b.due_soon) return -1;
         if (!a.due_soon && b.due_soon) return 1;
     }
 
-    // 3. Priority: high -> medium -> low
+    
     const priorityOrder = { high: 1, medium: 2, low: 3 };
     const aPriority = a.priority ? priorityOrder[a.priority] : 4;
     const bPriority = b.priority ? priorityOrder[b.priority] : 4;
     if (aPriority !== bPriority) return aPriority - bPriority;
 
-    // 4. Due date ascending
-    const aDate = a.due_date ? new Date(a.due_date) : new Date(8640000000000000);
+        const aDate = a.due_date ? new Date(a.due_date) : new Date(8640000000000000);
     const bDate = b.due_date ? new Date(b.due_date) : new Date(8640000000000000);
     return aDate - bDate;
 });
@@ -285,13 +284,12 @@ function renderPagination(meta){
       btn.addEventListener('click', async (e)=>{
         const id = e.currentTarget.dataset.id;
         const curr = e.currentTarget.dataset.completed === 'true';
-        await toggleStatus(id, !curr); // live update
+        await toggleStatus(id, !curr); 
       });
     });
   }
 
-  // Form submission
-  // Form submission
+  
 taskForm.addEventListener('submit', async (e)=>{
     e.preventDefault();
     clearErrors();
@@ -326,7 +324,7 @@ taskForm.addEventListener('submit', async (e)=>{
         }
     }
 
-    // Priority validation (now required)
+    // Priority validation 
     if (!priority) {
         showError('priority','Priority is required. Please select a priority level.');
         hasError = true;
@@ -399,7 +397,7 @@ taskForm.addEventListener('submit', async (e)=>{
   async function toggleStatus(id, completed){
     try { 
       await axios.patch(`/api/tasks/${id}/status`, { is_completed: completed }); 
-      await fetchTasks(); // live resort
+      await fetchTasks(); 
     }
     catch(err){ console.error(err); alert('Update status failed'); }
   }

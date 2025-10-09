@@ -13,10 +13,10 @@ class TaskController extends Controller
         public function index(Request $request)
     {
         $filter = $request->query('filter');
-        $perPage = $request->query('per_page', 6); // default 10 items per page
+        $perPage = $request->query('per_page', 6); 
 
         $query = Task::query()
-    ->orderByRaw("is_completed ASC") // incomplete (0) first, completed (1) last
+    ->orderByRaw("is_completed ASC") 
     ->orderByRaw("FIELD(priority,'high','medium','low') ASC")
     ->orderBy('due_date','asc');
 
@@ -24,10 +24,10 @@ class TaskController extends Controller
         if ($filter === 'completed') $query->where('is_completed', true);
         if ($filter === 'pending') $query->where('is_completed', false);
 
-        // Use paginate instead of get
+        
         $tasks = $query->paginate($perPage);
 
-        // Add due_soon attribute
+        
         $tasks->getCollection()->transform(function($t){
             $t->due_soon = $t->isDueSoon();
             return $t;
@@ -68,7 +68,7 @@ class TaskController extends Controller
             'task_name' => 'required|string|max:255',
             'description' => 'required|string|max:500',
             'due_date' => 'nullable|date',
-            'priority' => ['nullable', Rule::in(['low','medium','high'])],
+            'priority' => ['required ', Rule::in(['low','medium','high'])],
             'is_completed' => 'sometimes|boolean',
         ]);
 
